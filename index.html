@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quantis — Multi-Model Stock Forecasting</title>
+<title>Quantis: Multi-Model Stock Forecasting</title>
 <meta name="description" content="A multi-model stock analysis dashboard comparing LSTM, ARIMA, Random Forest, and multi-horizon ensemble forecasts on live market data.">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/main.css">
@@ -28,14 +28,14 @@
 <!-- ===== HERO / INTRO ===== -->
 <div class="hero">
   <p class="hero-title">
-    <strong>Quantis</strong> compares five forecasting approaches — <em>LSTM</em>, <em>ARIMA</em>,
+    <strong>Quantis</strong> compares five forecasting approaches, <em>LSTM</em>, <em>ARIMA</em>,
     <em>Random Forest</em>, <em>Logistic Regression</em>, and a <em>multi-horizon ensemble</em> —
     across 100 US stocks and ETFs. Type a ticker on the left to load it; the
     <strong>sidebar</strong> shows price, technical indicators, and risk metrics computed
     from real OHLCV bars. The <strong>top panel</strong> derives buy/sell zones from
     Bollinger bands and ATR. The <strong>tabbed chart</strong> lets you compare each
     model's forecast against the actual price history and a 12-month backtest. Data is
-    refreshed offline in Python and committed to the repo as JSON — no live API, no rate
+    refreshed offline in Python and committed to the repo as JSON, no live API, no rate
     limits, no broken fetches. See the <strong>Methodology</strong> page for the math
     behind each model and why the architecture is what it is. Full source code, the
     Colab pipeline, and the list of covered tickers are on
@@ -154,7 +154,7 @@
       <div class="watchlist-hero">
         <h1>Watchlist</h1>
         <p>Stocks you're tracking. Live quotes update every time you load this tab. Your list
-           is saved in your browser, so it persists across sessions — switch devices and you'll
+           is saved in your browser, so it persists across sessions, switch devices and you'll
            start fresh.</p>
         <div class="watch-add">
           <input type="text" id="watch-add-input" placeholder="Add ticker (e.g. AAPL)" autocomplete="off">
@@ -209,18 +209,18 @@
       <section class="method-section">
         <h2><span class="num">1</span> Data pipeline</h2>
         <p>
-          The dashboard runs entirely client-side on GitHub Pages — no backend, no API keys,
+          The dashboard runs entirely client-side on GitHub Pages, no backend, no API keys,
           no rate limits. OHLCV bars and ML forecasts are pre-generated in a single Colab
           notebook (<code>Quantis_Pipeline.ipynb</code>) and committed to the repo as JSON
           files under <code>data/bars/</code> and <code>data/forecasts/</code>. The browser
           reads those local files directly. The badge in the top corner of this page shows
-          when the data was last refreshed — currently
+          when the data was last refreshed, currently
           <span id="dataFreshness" class="freshness-badge">checking…</span>.
         </p>
         <p>
           This is the third architecture I tried. The first prototype hit Yahoo Finance's
-          chart endpoint directly from the browser — that's how every static stock dashboard
-          worked for years — but Yahoo tightened CORS constraints in 2025 and started blocking
+          chart endpoint directly from the browser, that's how every static stock dashboard
+          worked for years, but Yahoo tightened CORS constraints in 2025 and started blocking
           browser fetches. The second attempt used Finnhub's <code>/stock/candle</code>
           endpoint, which has the right CORS headers, but Finnhub moved historical bars behind
           a paywall in 2024-25. Alpha Vantage caps free use at 25 calls/day; Twelve Data and
@@ -228,7 +228,7 @@
           For a portfolio site that must <em>just work</em>, every "live" option is broken.
         </p>
         <p>
-          The honest answer is to pre-generate. Yahoo data is still freely available — just
+          The honest answer is to pre-generate. Yahoo data is still freely available, just
           not from a browser. The Colab notebook pulls 5 years of daily OHLCV via
           <code>yfinance</code>, trains all five models (LSTM benefits from a free Colab GPU),
           and commits everything to GitHub in one batched API call. The dashboard then has
@@ -269,7 +269,7 @@
         <p>
           Each model approaches forecasting differently. Running them side-by-side surfaces where
           they agree (higher-confidence signals) and where they diverge (uncertainty). The point
-          isn't to pick the "best" model — it's to make the disagreement legible.
+          isn't to pick the "best" model, it's to make the disagreement legible.
         </p>
         <div class="model-grid">
 
@@ -294,7 +294,7 @@
             <div class="model-card-name">ARIMA</div>
             <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Classical Time Series · Regression</div>
             <div class="model-card-desc">
-              ARIMA(5,1,0) — five autoregressive lags, first-difference (d=1) to handle the trending
+              ARIMA(5,1,0), five autoregressive lags, first-difference (d=1) to handle the trending
               nature of price series. Stationarity verified via the Augmented Dickey-Fuller test
               (raw prices fail; differenced prices pass at p&lt;0.05). Walk-forward predictions on
               the test set; 30-day forecast on the full history.
@@ -329,7 +329,7 @@
             <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Phase IV · Multi-Output</div>
             <div class="model-card-desc">
               Instead of one model predicting one day ahead, this fits a separate Random Forest for
-              each horizon — 1, 3, 5, 10, and 20 trading days. The output is a probability surface
+              each horizon, 1, 3, 5, 10, and 20 trading days. The output is a probability surface
               over time: where does the model see the strongest directional edge? Useful for sizing
               hold windows rather than entry timing.
             </div>
@@ -363,7 +363,7 @@
       <section class="method-section">
         <h2><span class="num">3</span> Feature engineering</h2>
         <p>
-          The classifiers don't see raw price — they see 19 features derived from OHLCV. This is
+          The classifiers don't see raw price, they see 19 features derived from OHLCV. This is
           where domain knowledge enters the model. Features fall into five buckets:
         </p>
         <h3>Momentum</h3>
@@ -388,7 +388,7 @@
         </p>
         <p>
           Random Forest's feature importance ranking (visible on the RF tab) usually puts SMA-based
-          features near the top, which makes intuitive sense — short-term trend dominates next-day
+          features near the top, which makes intuitive sense, short-term trend dominates next-day
           direction. The full feature list is in the Colab notebook's <code>FEATURE_COLS</code>.
         </p>
       </section>
@@ -397,7 +397,7 @@
         <h2><span class="num">4</span> How signals combine</h2>
         <p>
           The "consensus" indicator on the dashboard isn't a weighted vote of the regression models
-          (LSTM, ARIMA) — those predict continuous prices, not directions. Instead it combines four
+          (LSTM, ARIMA), those predict continuous prices, not directions. Instead it combines four
           directional signals:
         </p>
         <table class="spec-table" style="margin-top:10px">
@@ -408,7 +408,7 @@
         </table>
         <p class="muted" style="margin-top:10px">
           A simple majority vote across these four produces BUY / SELL / HOLD. The LSTM and ARIMA
-          forecasts inform the buy-zone target price but don't enter the directional vote — their
+          forecasts inform the buy-zone target price but don't enter the directional vote, their
           job is magnitude, not direction.
         </p>
       </section>
@@ -422,7 +422,7 @@
           parameter, which then drives the equity curve.
         </p>
         <p class="muted">
-          This is a simplified backtest — no slippage, no spread, no commissions, no position
+          This is a simplified backtest, no slippage, no spread, no commissions, no position
           sizing rules. Real trading reduces returns substantially. The point is comparison
           <em>across</em> models on a level playing field, not a forecast of live PnL.
         </p>
@@ -431,7 +431,7 @@
       <section class="method-section">
         <h2><span class="num">6</span> Limitations &amp; caveats</h2>
         <ul class="limit-list">
-          <li>Historical performance is not predictive. Stock markets are mostly efficient — even professional traders rarely sustain a 55% win rate.</li>
+          <li>Historical performance is not predictive. Stock markets are mostly efficient, even professional traders rarely sustain a 55% win rate.</li>
           <li>Frictionless backtests overstate real-world returns. Slippage, spreads, and commissions can erase a 2–3% edge entirely.</li>
           <li>Models are trained on a fixed historical window. A regime shift (rate cycle change, recession, vol regime change) will degrade them until retrained.</li>
           <li>Confidence intervals widen quickly with horizon. The 30-day forecast band is illustrative; daily models lose precision rapidly past 5–10 trading days.</li>
@@ -450,7 +450,7 @@
           handles fetch → feature engineering → train → commit, using <code>yfinance</code>,
           TensorFlow, statsmodels, scikit-learn, and <code>ta</code>.
           <strong>Deployment:</strong> GitHub Pages, no CI needed.
-          <strong>Source:</strong> reproducible end-to-end — open the notebook in Colab,
+          <strong>Source:</strong> reproducible end-to-end, open the notebook in Colab,
           add a <code>GITHUB_TOKEN</code> secret, set repo coords, Runtime → Run all. ~2 minutes
           for a bars-only refresh, ~45 minutes on a free GPU runtime for the full model retrain.
         </p>

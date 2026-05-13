@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quantis — Multi-Model Stock Forecasting</title>
+<meta name="description" content="A multi-model stock analysis dashboard comparing LSTM, ARIMA, Random Forest, and multi-horizon ensemble forecasts on live market data.">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-logo">Q</div>
+    <span class="nav-title">Quantis</span>
+    <span class="nav-tag">v1.0</span>
+  </div>
+  <div class="nav-links">
+    <a data-view="dashboard" class="active">Dashboard</a>
+    <a data-view="watchlist">Watchlist</a>
+    <a data-view="methodology">Methodology</a>
+  </div>
+</nav>
+
+<!-- ===== HERO / INTRO ===== -->
+<div class="hero">
+  <p class="hero-title">
+    <strong>Quantis</strong> compares five forecasting approaches — <em>LSTM</em>, <em>ARIMA</em>,
+    <em>Random Forest</em>, <em>Logistic Regression</em>, and a <em>multi-horizon ensemble</em> —
+    on live OHLCV data to surface buy and sell windows. Type a ticker on the left to load it; the
+    <strong>sidebar</strong> shows current price, technical indicators, and risk metrics computed
+    from real bars. The <strong>top panel</strong> derives buy/sell zones from Bollinger bands and
+    ATR. The <strong>tabbed chart</strong> lets you compare each model's forecast against the
+    actual price history and a 12-month backtest. Models for 15 popular tickers are pre-trained;
+    other tickers show live price &amp; indicators but ML tabs will say "not yet trained." See the
+    <strong>Methodology</strong> page for the math behind each model.
+  </p>
+</div>
+
+<div class="page">
+
+<!-- =================================================================
+     DASHBOARD VIEW
+     ================================================================= -->
+<div class="view active" id="view-dashboard">
+  <div class="dashboard">
+
+    <!-- ===== LEFT SIDEBAR ===== -->
+    <div class="sidebar">
+
+      <div class="sidebar-section">
+        <div class="section-label">Ticker</div>
+        <div class="ticker-input-wrap">
+          <div class="ticker-field">
+            <input type="text" class="ticker-input" id="tickerInput"
+                   placeholder="Search ticker or company"
+                   value="AAPL" autocomplete="off" spellcheck="false">
+          </div>
+          <button class="ticker-btn" id="analyzeBtn">Analyze</button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Stock Summary</div>
+        <div class="stock-header">
+          <span class="stock-ticker" id="dispTicker">AAPL</span>
+          <span class="stock-name" id="dispName">Loading…</span>
+        </div>
+        <div class="stock-price" id="dispPrice">—</div>
+        <span class="stock-change" id="dispChange">—</span>
+        <div class="stat-grid">
+          <div class="stat-item"><div class="stat-label">Open</div><div class="stat-val" id="stat-open">—</div></div>
+          <div class="stat-item"><div class="stat-label">High</div><div class="stat-val" id="stat-high">—</div></div>
+          <div class="stat-item"><div class="stat-label">Low</div><div class="stat-val" id="stat-low">—</div></div>
+          <div class="stat-item"><div class="stat-label">Volume</div><div class="stat-val" id="stat-volume">—</div></div>
+          <div class="stat-item"><div class="stat-label">52W High</div><div class="stat-val" id="stat-yhigh">—</div></div>
+          <div class="stat-item"><div class="stat-label">52W Low</div><div class="stat-val" id="stat-ylow">—</div></div>
+        </div>
+        <button class="watchlist-toggle" id="watchlistToggle">☆ Add to watchlist</button>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Technical Indicators</div>
+        <div id="indicators">
+          <div class="indicator-row"><span class="indicator-name">—</span></div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="section-label">Risk Metrics (252-day)</div>
+        <div id="risk">
+          <div class="risk-item"><span class="risk-name">Loading…</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ===== RIGHT COLUMN ===== -->
+    <div class="right-col">
+
+      <div class="windows-panel">
+        <div class="section-label">Buy &amp; Sell Windows</div>
+        <div class="window-cards" id="windows">
+          <div class="window-card hold"><div class="window-meta">Loading…</div></div>
+        </div>
+        <div class="consensus-bar" id="consensusBar">
+          <span class="consensus-label">Loading consensus…</span>
+        </div>
+      </div>
+
+      <div class="tabs-panel">
+        <div class="tabs-row">
+          <div class="tab active" data-tab="price"     data-color="red">
+            <span class="tab-dot" style="background:var(--red)"></span>Price History
+          </div>
+          <div class="tab" data-tab="lstm"     data-color="green">
+            <span class="tab-dot" style="background:var(--green)"></span>LSTM
+          </div>
+          <div class="tab" data-tab="arima"    data-color="blue">
+            <span class="tab-dot" style="background:var(--accent)"></span>ARIMA
+          </div>
+          <div class="tab" data-tab="rf"       data-color="pink">
+            <span class="tab-dot" style="background:var(--pink)"></span>Random Forest
+          </div>
+          <div class="tab" data-tab="ensemble" data-color="orange">
+            <span class="tab-dot" style="background:var(--orange)"></span>Multi-Horizon
+          </div>
+          <div class="tab" data-tab="consensus" data-color="purple">
+            <span class="tab-dot" style="background:var(--purple)"></span>Backtest
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-panel" id="chartPanel">
+        <div class="chart-empty">Loading data…</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     WATCHLIST VIEW
+     ================================================================= -->
+<div class="view" id="view-watchlist">
+  <div class="watchlist-view">
+    <div class="watchlist-inner">
+      <div class="watchlist-hero">
+        <h1>Watchlist</h1>
+        <p>Stocks you're tracking. Live quotes update every time you load this tab. Your list
+           is saved in your browser, so it persists across sessions — switch devices and you'll
+           start fresh.</p>
+        <div class="watch-add">
+          <input type="text" id="watch-add-input" placeholder="Add ticker (e.g. AAPL)" autocomplete="off">
+          <button class="ticker-btn" id="watch-add-btn">Add</button>
+        </div>
+      </div>
+
+      <div class="watch-grid">
+        <div class="watch-header">
+          <div>Ticker</div>
+          <div>Company</div>
+          <div>Price</div>
+          <div>Change</div>
+          <div>Volume</div>
+          <div class="watch-actions">Actions</div>
+        </div>
+        <div id="watchlist-grid"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================================================================
+     METHODOLOGY VIEW
+     ================================================================= -->
+<div class="view" id="view-methodology">
+  <div class="methodology">
+    <div class="methodology-inner">
+
+      <div class="method-hero">
+        <div class="method-eyebrow">How Quantis works</div>
+        <h1 class="method-title">Methodology</h1>
+        <p class="method-lede">
+          Quantis is the web port of a graduate research project (INFO 656 final, Pratt Institute)
+          that compares classical ML, deep learning, and time-series approaches to stock forecasting.
+          Below: the data pipeline, each model's design choices, how predictions are reconciled,
+          and the honest limitations of the work.
+        </p>
+      </div>
+
+      <section class="method-section">
+        <h2><span class="num">1</span> Data pipeline</h2>
+        <p>
+          The dashboard runs entirely client-side on GitHub Pages — no backend. Live OHLCV bars
+          come from Yahoo Finance's public chart endpoint (the same endpoint that
+          <code>yfinance</code> wraps in Python); if that's blocked, Quantis falls back to Stooq
+          via a CORS-friendly proxy. Technical indicators and risk metrics are computed in
+          JavaScript from those bars — the math mirrors the <code>ta</code> Python library.
+        </p>
+        <p>
+          ML models can't reasonably train in-browser (LSTM training takes minutes; ARIMA fitting
+          is iterative). Those run offline in Python (<code>python/generate_forecasts.py</code>)
+          and emit a per-ticker JSON file under <code>data/forecasts/</code>. The web app fetches
+          whichever JSON matches the current ticker. Tickers without a JSON show live price &amp;
+          indicators but a "not trained" state on ML tabs.
+        </p>
+        <div class="pipeline">
+          <div class="pipe-step">
+            <div class="pipe-step-num">01</div>
+            <div class="pipe-step-name">Fetch</div>
+            <div class="pipe-step-desc">Yahoo Finance / Stooq fallback · 1mo–5y daily OHLCV</div>
+          </div>
+          <div class="pipe-step">
+            <div class="pipe-step-num">02</div>
+            <div class="pipe-step-name">Transform</div>
+            <div class="pipe-step-desc">RSI, MACD, SMA, EMA, Bollinger, ATR in pure JS</div>
+          </div>
+          <div class="pipe-step">
+            <div class="pipe-step-num">03</div>
+            <div class="pipe-step-name">Load forecasts</div>
+            <div class="pipe-step-desc">Precomputed model outputs from Python pipeline</div>
+          </div>
+          <div class="pipe-step">
+            <div class="pipe-step-num">04</div>
+            <div class="pipe-step-name">Reconcile</div>
+            <div class="pipe-step-desc">Indicator signals + ML probabilities → consensus</div>
+          </div>
+          <div class="pipe-step">
+            <div class="pipe-step-num">05</div>
+            <div class="pipe-step-name">Render</div>
+            <div class="pipe-step-desc">Canvas-based price, forecast, and equity-curve charts</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="method-section">
+        <h2><span class="num">2</span> The five models</h2>
+        <p>
+          Each model approaches forecasting differently. Running them side-by-side surfaces where
+          they agree (higher-confidence signals) and where they diverge (uncertainty). The point
+          isn't to pick the "best" model — it's to make the disagreement legible.
+        </p>
+        <div class="model-grid">
+
+          <div class="model-card green">
+            <div class="model-card-name">LSTM</div>
+            <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Deep Learning · Regression</div>
+            <div class="model-card-desc">
+              Three stacked LSTM layers (50 units each, 20% dropout), trained on 5 years of daily
+              closes scaled to [0,1]. Looks at a 60-day lookback window to predict the next day's
+              price, then recursively forecasts 30 days forward. Early stopping on validation loss.
+            </div>
+            <table class="spec-table">
+              <tr><td>Lookback</td><td>60 days</td></tr>
+              <tr><td>Architecture</td><td>3× LSTM(50)</td></tr>
+              <tr><td>Optimizer</td><td>Adam</td></tr>
+              <tr><td>Loss</td><td>MSE</td></tr>
+              <tr><td>Forecast horizon</td><td>30 days</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card blue">
+            <div class="model-card-name">ARIMA</div>
+            <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Classical Time Series · Regression</div>
+            <div class="model-card-desc">
+              ARIMA(5,1,0) — five autoregressive lags, first-difference (d=1) to handle the trending
+              nature of price series. Stationarity verified via the Augmented Dickey-Fuller test
+              (raw prices fail; differenced prices pass at p&lt;0.05). Walk-forward predictions on
+              the test set; 30-day forecast on the full history.
+            </div>
+            <table class="spec-table">
+              <tr><td>Order</td><td>(5, 1, 0)</td></tr>
+              <tr><td>Window</td><td>500 trading days</td></tr>
+              <tr><td>Stationarity</td><td>ADF, p&lt;0.05</td></tr>
+              <tr><td>Validation</td><td>Walk-forward</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card pink">
+            <div class="model-card-name">Random Forest</div>
+            <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Tree Ensemble · Binary Classification</div>
+            <div class="model-card-desc">
+              An ensemble of 100 decision trees (max depth 10) predicting whether tomorrow's close
+              will be higher than today's. Trained on 19 engineered features: momentum (RSI, MACD,
+              stochastics), volatility (Bollinger width, ATR), volume ratios, lagged returns, and
+              trend strength. Compared against Logistic Regression and Decision Tree baselines.
+            </div>
+            <table class="spec-table">
+              <tr><td>Trees</td><td>100</td></tr>
+              <tr><td>Max depth</td><td>10</td></tr>
+              <tr><td>Features</td><td>19 engineered</td></tr>
+              <tr><td>Target</td><td>Up / Down (1 day)</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card orange">
+            <div class="model-card-name">Multi-Horizon Ensemble</div>
+            <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Phase IV · Multi-Output</div>
+            <div class="model-card-desc">
+              Instead of one model predicting one day ahead, this fits a separate Random Forest for
+              each horizon — 1, 3, 5, 10, and 20 trading days. The output is a probability surface
+              over time: where does the model see the strongest directional edge? Useful for sizing
+              hold windows rather than entry timing.
+            </div>
+            <table class="spec-table">
+              <tr><td>Horizons</td><td>1, 3, 5, 10, 20</td></tr>
+              <tr><td>Per-horizon model</td><td>RF (80 trees, depth 8)</td></tr>
+              <tr><td>Output</td><td>P(UP) per horizon</td></tr>
+            </table>
+          </div>
+
+          <div class="model-card purple">
+            <div class="model-card-name">Consensus &amp; Backtest</div>
+            <div class="model-card-tag" style="display:inline-block;margin-bottom:8px">Phase V · Synthesis</div>
+            <div class="model-card-desc">
+              Each model's signal is translated into a directional trade, run against the last
+              252 trading days with $10,000 starting capital. Compared against passive buy-and-hold.
+              The consensus bar on the main dashboard combines indicator signals (RSI, MACD, SMA)
+              with the RF probability into a single confidence reading.
+            </div>
+            <table class="spec-table">
+              <tr><td>Period</td><td>252 days (rolling)</td></tr>
+              <tr><td>Capital</td><td>$10,000</td></tr>
+              <tr><td>Benchmark</td><td>Buy &amp; Hold</td></tr>
+              <tr><td>Friction</td><td>None (educational)</td></tr>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="method-section">
+        <h2><span class="num">3</span> Feature engineering</h2>
+        <p>
+          The classifiers don't see raw price — they see 19 features derived from OHLCV. This is
+          where domain knowledge enters the model. Features fall into five buckets:
+        </p>
+        <h3>Momentum</h3>
+        <p class="muted">
+          RSI(14), MACD line / signal / histogram, Stochastic %K / %D. These capture short-term
+          overbought / oversold conditions and trend acceleration.
+        </p>
+        <h3>Volatility</h3>
+        <p class="muted">
+          Bollinger band width, Bollinger position (where current price sits inside the bands),
+          ATR percent, daily high-low range. These describe how "wild" the recent price action is.
+        </p>
+        <h3>Volume</h3>
+        <p class="muted">
+          Volume ratio (current vs. 20-day average). Volume confirms or denies price moves.
+        </p>
+        <h3>Returns &amp; trend</h3>
+        <p class="muted">
+          Multi-period returns (1d, 5d, 10d, 20d), 20-day realized volatility, price/SMA ratios,
+          trend strength. These give the model context: is the price stretched, mean-reverting,
+          or trending?
+        </p>
+        <p>
+          Random Forest's feature importance ranking (visible on the RF tab) usually puts SMA-based
+          features near the top, which makes intuitive sense — short-term trend dominates next-day
+          direction. The full feature list is in <code>python/generate_forecasts.py</code>.
+        </p>
+      </section>
+
+      <section class="method-section">
+        <h2><span class="num">4</span> How signals combine</h2>
+        <p>
+          The "consensus" indicator on the dashboard isn't a weighted vote of the regression models
+          (LSTM, ARIMA) — those predict continuous prices, not directions. Instead it combines four
+          directional signals:
+        </p>
+        <table class="spec-table" style="margin-top:10px">
+          <tr><td>Random Forest next-day P(UP)</td><td>From the precomputed JSON</td></tr>
+          <tr><td>MACD line vs. signal line</td><td>Crossover direction</td></tr>
+          <tr><td>RSI(14)</td><td>&lt;30 oversold, &gt;70 overbought</td></tr>
+          <tr><td>Price vs. SMA-20</td><td>Above = bullish</td></tr>
+        </table>
+        <p class="muted" style="margin-top:10px">
+          A simple majority vote across these four produces BUY / SELL / HOLD. The LSTM and ARIMA
+          forecasts inform the buy-zone target price but don't enter the directional vote — their
+          job is magnitude, not direction.
+        </p>
+      </section>
+
+      <section class="method-section">
+        <h2><span class="num">5</span> Backtesting</h2>
+        <p>
+          Each model is evaluated on the last 252 trading days with $10,000 starting capital.
+          The classifiers' equity curves assume a long-only strategy: enter on P(UP)&gt;0.5, exit
+          on P(UP)&lt;0.5. The regressors (LSTM, ARIMA) translate their MAPE into an "edge"
+          parameter, which then drives the equity curve.
+        </p>
+        <p class="muted">
+          This is a simplified backtest — no slippage, no spread, no commissions, no position
+          sizing rules. Real trading reduces returns substantially. The point is comparison
+          <em>across</em> models on a level playing field, not a forecast of live PnL.
+        </p>
+      </section>
+
+      <section class="method-section">
+        <h2><span class="num">6</span> Limitations &amp; caveats</h2>
+        <ul class="limit-list">
+          <li>Historical performance is not predictive. Stock markets are mostly efficient — even professional traders rarely sustain a 55% win rate.</li>
+          <li>Frictionless backtests overstate real-world returns. Slippage, spreads, and commissions can erase a 2–3% edge entirely.</li>
+          <li>Models are trained on a fixed historical window. A regime shift (rate cycle change, recession, vol regime change) will degrade them until retrained.</li>
+          <li>Confidence intervals widen quickly with horizon. The 30-day forecast band is illustrative; daily models lose precision rapidly past 5–10 trading days.</li>
+          <li>The 19 engineered features are technical-only. No fundamental data, no news sentiment, no earnings, no macro. A complete model would pull all of these.</li>
+          <li>Quantis is a portfolio piece, not financial advice. Treat it as an educational exploration of where modeling techniques agree and disagree.</li>
+        </ul>
+      </section>
+
+      <section class="method-section">
+        <h2><span class="num">7</span> Stack &amp; reproducibility</h2>
+        <p class="muted">
+          <strong>Frontend:</strong> Vanilla ES modules, canvas-rendered charts, no framework.
+          <strong>Data:</strong> Yahoo Finance chart endpoint (primary), Stooq via corsproxy.io
+          (fallback). <strong>Offline pipeline:</strong> Python 3.11+ with TensorFlow, statsmodels,
+          scikit-learn, ta, yfinance. <strong>Deployment:</strong> GitHub Pages (static).
+          <strong>Source:</strong> the offline pipeline is reproducible end-to-end —
+          <code>cd python &amp;&amp; pip install -r requirements.txt &amp;&amp; python generate_forecasts.py</code>
+          retrains every model and updates the JSON files the site reads.
+        </p>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ===== Dropdown lives outside .sidebar to escape clipping ===== -->
+<div class="ticker-dropdown" id="tickerDropdown"></div>
+
+<div class="disclaimer">
+  Quantis is an educational research project. Not financial advice.
+  Past performance is not a guarantee of future results.
+</div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

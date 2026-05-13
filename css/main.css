@@ -96,6 +96,30 @@ body {
 .nav-links a:hover,
 .nav-links a.active { color: var(--text); }
 
+.nav-freshness {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  margin-right: 4px;
+  cursor: help;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.freshness-badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--accent);
+  padding: 1px 6px;
+  background: rgba(79, 143, 255, 0.08);
+  border-radius: 3px;
+  cursor: help;
+}
+
 /* =========================================================================
    HERO
    ========================================================================= */
@@ -1381,6 +1405,10 @@ body.loading .chart-canvas-wrap::after {
   .watch-row, .watch-header { grid-template-columns: 60px 1fr 80px 100px; }
   .watch-volume, .watch-header > div:nth-child(5),
   .watch-change, .watch-header > div:nth-child(4) { display: none; }
+}
+
+@media (max-width: 880px) {
+  .nav-freshness { display: none; }
 }
 
 @media (max-width: 520px) {

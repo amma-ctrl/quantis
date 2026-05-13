@@ -10,7 +10,7 @@
  * `.view` element. No router framework needed.
  */
 
-import { fetchBars, fetchForecasts, fetchQuote, isConfigured } from "./data.js";
+import { fetchBars, fetchForecasts, fetchQuote } from "./data.js";
 import { computeAll } from "./indicators.js";
 import {
   renderPriceChart, renderForecastChart, renderBacktestChart, buildEquityCurves,
@@ -69,6 +69,40 @@ function fmtVolume(v) {
 function fmtPct(v) {
   if (v == null || isNaN(v)) return "—";
   return (v >= 0 ? "+" : "") + v.toFixed(2) + "%";
+}
+
+/**
+ * Render the "Last refreshed" badge in the nav, and (if visible) the inline
+ * date span inside the methodology page. Reads `state.manifest.generated_at`
+ * which the Colab notebook writes when it commits new data.
+ */
+function renderFreshnessBadge() {
+  const iso = state.manifest && state.manifest.generated_at;
+  let label = "—";
+  let title = "Data freshness unknown";
+  if (iso) {
+    const d = new Date(iso);
+    if (!isNaN(d)) {
+      const now = new Date();
+      const diffH = (now - d) / 36e5;
+      if (diffH < 24)      label = "Today";
+      else if (diffH < 48) label = "Yesterday";
+      else if (diffH < 168) label = `${Math.floor(diffH / 24)} days ago`;
+      else                 label = d.toISOString().slice(0, 10);
+      title = `Data generated ${d.toUTCString()}\n` +
+              `${state.manifest.tickers?.length || 0} tickers in the universe`;
+    }
+  }
+  const navBadge = $("navFreshness");
+  if (navBadge) {
+    navBadge.textContent = "Data: " + label;
+    navBadge.title = title;
+  }
+  const inlineBadge = $("dataFreshness");
+  if (inlineBadge) {
+    inlineBadge.textContent = label === "—" ? "unknown" : label;
+    inlineBadge.title = title;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -472,11 +506,13 @@ function showError(msg) {
     <div class="chart-header"><div class="chart-title">Couldn't load ${state.ticker}</div></div>
     <div class="not-trained">
       <div class="not-trained-icon">!</div>
-      <div class="not-trained-title">Data fetch failed</div>
+      <div class="not-trained-title">No data available for ${state.ticker}</div>
       <div class="not-trained-body">
         ${msg}<br><br>
-        Try a different ticker, or check your connection. Yahoo Finance occasionally rate-limits;
-        the dashboard falls back to Stooq, but both can momentarily block.
+        Quantis covers 100 US stocks and ETFs out of the box. To add ${state.ticker},
+        run <code>python python/generate_bars.py ${state.ticker}</code>
+        (and optionally <code>python python/generate_forecasts.py ${state.ticker}</code>
+        for ML coverage), then commit the new JSON files.
       </div>
     </div>`;
 }
@@ -593,62 +629,87 @@ function switchView(target) {
     requestAnimationFrame(() => renderTab(state.activeTab));
   } else if (target === "watchlist") {
     renderWatchlistTab();
+  } else if (target === "methodology") {
+    // Re-render inline freshness span (the methodology view was hidden when init ran)
+    renderFreshnessBadge();
   }
 }
 
 // ---------------------------------------------------------------------------
-// Setup screen (shown when the Finnhub key is missing)
+// Onboarding screen (shown when no pre-baked data files exist yet)
 // ---------------------------------------------------------------------------
 
-function showSetupScreen() {
+function showOnboardingScreen() {
   const page = document.querySelector(".page");
   if (!page) return;
 
-  // Hide the hero too — the setup screen takes over
   const hero = document.querySelector(".hero");
   if (hero) hero.style.display = "none";
 
   page.innerHTML = `
     <div class="setup-screen">
       <div class="setup-card">
-        <div class="setup-icon">🔑</div>
-        <h1 class="setup-title">One-time setup</h1>
+        <div class="setup-icon">📊</div>
+        <h1 class="setup-title">Generate the data</h1>
         <p class="setup-lede">
-          Quantis needs a free Finnhub API key to fetch live market data.
-          Setup takes about 30 seconds.
+          Quantis reads OHLCV bars and model outputs from JSON files in the repo.
+          Generate them once by running the Colab notebook — about 2 minutes for
+          bars, ~45 minutes (on GPU) for the full model retrain.
         </p>
 
         <ol class="setup-steps">
           <li>
-            <strong>Sign up</strong> at
-            <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io/register</a>
-            (free, no credit card)
+            <strong>Open <code>Quantis_Pipeline.ipynb</code> in Colab.</strong>
+            Upload it from your repo, or open directly from GitHub via Colab's
+            <em>File → Open notebook → GitHub</em> tab.
           </li>
           <li>
-            Copy your API key from
-            <a href="https://finnhub.io/dashboard" target="_blank" rel="noopener">finnhub.io/dashboard</a>
+            <strong>Create a GitHub Personal Access Token.</strong>
+            Go to <a href="https://github.com/settings/tokens?type=beta" target="_blank" rel="noopener">github.com/settings/tokens</a> →
+            generate a fine-grained token scoped to <em>only your quantis repo</em>
+            with <em>Contents: Read &amp; write</em> permission.
           </li>
           <li>
-            Open <code>js/data.js</code> in the repo and replace
-            <code>YOUR_FINNHUB_KEY_HERE</code> on line ~37 with your key:
-            <pre><code>export const FINNHUB_KEY = "your_key_pasted_here";</code></pre>
+            <strong>Store the token in Colab Secrets.</strong>
+            Click the 🔑 key icon in Colab's left sidebar → Add new secret →
+            Name: <code>GITHUB_TOKEN</code> → paste the token → toggle
+            <em>Notebook access</em> on.
           </li>
           <li>
-            Commit, push to GitHub, wait ~30s for Pages to redeploy. Done.
+            <strong>Set your repo coords</strong> in the notebook's config cell
+            (<code>GH_USER</code>, <code>GH_REPO</code>), then
+            <strong>Runtime → Run all</strong>. For faster LSTM training, switch to
+            a GPU runtime first (Runtime → Change runtime type → T4 GPU).
+          </li>
+          <li>
+            The notebook pushes the generated JSONs directly to your repo in one
+            commit. GitHub Pages redeploys in ~30 seconds, then this dashboard
+            lights up.
           </li>
         </ol>
 
         <div class="setup-why">
-          <strong>Why a key?</strong> Yahoo Finance started blocking direct
-          browser fetches in 2025 — every static stock dashboard now needs an
-          API provider. Finnhub's free tier (60 calls/min) is plenty for a
-          portfolio site. The key is safe to commit to a public repo since
-          it only enforces rate limits, not authorization.
+          <strong>Why pre-generate?</strong> Yahoo Finance blocked browser fetches
+          in 2025, Finnhub moved historical bars to paid in 2024, Alpha Vantage
+          caps free at 25 calls/day. For a static portfolio site, the only
+          bulletproof approach is to fetch data offline in Python (where Yahoo
+          still works fine) and commit the JSONs. The dashboard then has zero
+          external dependencies — no keys, no CORS, no rate limits, nothing
+          to break.
         </div>
 
         <div class="setup-why" style="margin-top:12px">
-          <strong>Already added it?</strong> Make sure the file was saved and
-          pushed, then hard-refresh this page (Cmd/Ctrl + Shift + R).
+          <strong>Refreshing prices later?</strong> Just re-run the notebook with
+          <code>RUN_FORECASTS = False</code> in the config cell. ~2 minutes for
+          all 100 tickers. The slow forecast retrain only needs to run monthly
+          (or whenever the market regime shifts and the models need updating).
+        </div>
+
+        <div class="setup-why" style="margin-top:12px">
+          <strong>Already ran the notebook?</strong> Check that
+          <code>data/bars/manifest.json</code> and at least one
+          <code>data/bars/&lt;TICKER&gt;.json</code> file exist in your repo.
+          Then hard-refresh this page (Cmd/Ctrl + Shift + R).
         </div>
       </div>
     </div>`;
@@ -659,13 +720,34 @@ function showSetupScreen() {
 // ---------------------------------------------------------------------------
 
 function init() {
-  // If the Finnhub key isn't configured, show the setup screen and bail.
-  // (Stooq fallback exists but is unreliable; better to ask the user to
-  // configure properly than show a half-working dashboard.)
-  if (!isConfigured()) {
-    showSetupScreen();
-    return;
+  // Quick health check: try to load the manifest. If no bars exist yet,
+  // show the onboarding screen instead of a broken dashboard.
+  (async () => {
+    try {
+      const res = await fetch("data/bars/manifest.json");
+      if (!res.ok) { showOnboardingScreen(); return; }
+      const manifest = await res.json();
+      if (!manifest.tickers || manifest.tickers.length === 0) {
+        showOnboardingScreen();
+        return;
+      }
+      // Data is available — boot the dashboard.
+      bootDashboard(manifest);
+    } catch {
+      showOnboardingScreen();
+    }
+  })();
+}
+
+function bootDashboard(manifest) {
+  // If the initial ticker isn't in the manifest, switch to one that is.
+  if (manifest.tickers && manifest.tickers.length > 0 && !manifest.tickers.includes(state.ticker)) {
+    state.ticker = manifest.tickers[0];
   }
+
+  // Stash manifest for freshness badge + ticker coverage info
+  state.manifest = manifest;
+  renderFreshnessBadge();
 
   // Nav links
   document.querySelectorAll(".nav-links a").forEach(a =>

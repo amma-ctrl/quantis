@@ -2,33 +2,112 @@
 
 A web port of a graduate ML research project comparing **five forecasting
 approaches** — LSTM, ARIMA, Random Forest, Logistic Regression, and a
-multi-horizon ensemble — on live market data.
+multi-horizon ensemble — across **100 US stocks and ETFs**.
 
 Built as one of three portfolio pieces for the MS in Data Analytics &
 Visualization at Pratt Institute (INFO 656 final → web).
 
+**Live site:** https://amma-ctrl.github.io/quantis/
+
 ---
 
-## ⚠️ Setup: add your free Finnhub key (30 seconds, required)
+## How it works
 
-Yahoo Finance blocked direct browser fetches in 2025, so Quantis now uses
-Finnhub. The free tier is more than enough — 60 calls/min, full OHLCV.
+```
+   Colab notebook                 GitHub repo                  Static site
+ ┌───────────────────┐         ┌──────────────────┐         ┌────────────────┐
+ │ Quantis_Pipeline  │  push   │  data/bars/*.json│  serve  │  amma-ctrl     │
+ │   .ipynb          │ ──────▶ │  data/forecasts/ │ ──────▶ │  .github.io/   │
+ │                   │ (1 PR)  │  manifest.json   │ (Pages) │  quantis/      │
+ │ yfinance →        │         │                  │         │                │
+ │ feature eng →     │         │                  │         │  Fetches local │
+ │ LSTM/ARIMA/RF →   │         │                  │         │  JSON. No API. │
+ │ commit to GitHub  │         │                  │         │  Zero CORS.    │
+ └───────────────────┘         └──────────────────┘         └────────────────┘
+```
 
-1. Sign up at **[finnhub.io/register](https://finnhub.io/register)** (free, no credit card)
-2. Copy your API key from **[finnhub.io/dashboard](https://finnhub.io/dashboard)**
-3. Open `js/data.js` and replace the placeholder near the top:
-   ```js
-   export const FINNHUB_KEY = "YOUR_FINNHUB_KEY_HERE";
-   ```
-   with your actual key:
-   ```js
-   export const FINNHUB_KEY = "ct7xxxxxxxxxxxxxxxxxxxxx";
-   ```
-4. Commit and push. GitHub Pages redeploys in ~30 seconds.
+No live API, no keys in the browser, no rate limits. The site reads
+local JSON files; the notebook regenerates them whenever you want.
 
-If you skip this step, the dashboard shows a clear setup screen instead
-of broken data. The key is safe to commit publicly — Finnhub's free-tier
-keys only enforce rate limits, they don't authorize anything sensitive.
+---
+
+## First-time setup (~10 minutes)
+
+### 1. Get the site live (UI only, no data yet)
+
+```bash
+git clone <your-fork-of-this-repo>
+cd quantis
+# enable GitHub Pages in repo Settings → Pages → Source: main → root
+```
+
+Visit your GitHub Pages URL. You'll see an onboarding screen — that's the
+dashboard correctly detecting it has no data yet.
+
+### 2. Generate a GitHub Personal Access Token
+
+Go to **https://github.com/settings/tokens?type=beta** → *Generate new token*
+
+- **Repository access:** Only select repositories → choose your `quantis` repo
+- **Permissions:** Repository permissions → **Contents: Read and write**
+- Copy the token (starts with `github_pat_...`)
+
+### 3. Open the Colab notebook
+
+The file `Quantis_Pipeline.ipynb` is in the repo root. Open it in Colab one
+of these ways:
+
+- Colab → *File → Open notebook → GitHub tab* → paste your repo URL
+- Or upload it manually: Colab → *File → Upload notebook*
+
+### 4. Add the token to Colab Secrets
+
+In Colab's left sidebar, click the **🔑 key icon** → *Add new secret*:
+- **Name:** `GITHUB_TOKEN`
+- **Value:** the token you just copied
+- Toggle **Notebook access** on
+
+### 5. Set the repo coords + (optionally) GPU runtime
+
+In the notebook's config cell:
+```python
+GH_USER   = 'amma-ctrl'      # your GitHub username
+GH_REPO   = 'quantis'        # your repo name
+GH_BRANCH = 'main'
+```
+
+For LSTM training speedup: **Runtime → Change runtime type → T4 GPU**.
+Free Colab GPUs make the forecasts cell run roughly 10× faster.
+
+### 6. Run all
+
+**Runtime → Run all.** The notebook will:
+1. Install dependencies (~30s)
+2. Fetch 5y of OHLCV for 100 tickers (~2 min)
+3. Train all five models per ticker (~45 min on GPU, ~90 min on CPU)
+4. Push everything to your repo in one Git commit
+5. GitHub Pages redeploys in ~30 seconds — refresh your live site
+
+If you want a faster first run, set `RUN_FORECASTS = False` in the config
+cell. You'll get all 100 tickers with live price + indicators + risk metrics
+in ~2 minutes, but the ML tabs will show "not yet trained" until you do a
+full run.
+
+---
+
+## Day-to-day refreshes
+
+Open the notebook in Colab, **Runtime → Run all**. That's it.
+
+| Goal                    | Time      | Config                                |
+|-------------------------|-----------|---------------------------------------|
+| Refresh prices weekly   | ~2 min    | `RUN_FORECASTS = False`               |
+| Full retrain monthly    | ~45 min   | both `True`, GPU runtime              |
+| Just a few tickers      | varies    | `TICKERS_TO_RUN = ['AAPL', 'NVDA']`   |
+| Inspect before pushing  | 0         | `PUSH_TO_GITHUB = False`              |
+
+The dashboard shows a "Data: 2 days ago" badge in the nav bar so visitors
+(and you) always know when the data was last refreshed.
 
 ---
 
@@ -36,140 +115,92 @@ keys only enforce rate limits, they don't authorize anything sensitive.
 
 ```
 quantis/
-├── index.html              # Main shell, three views (Dashboard / Watchlist / Methodology)
+├── index.html
+├── README.md
+├── Quantis_Pipeline.ipynb      ← THE Colab notebook (the whole pipeline)
 ├── css/
-│   └── main.css            # All styling — dark theme, dropdown fix, responsive, setup screen
+│   └── main.css
 ├── js/
-│   ├── app.js              # Main orchestrator + view routing
-│   ├── data.js             # Finnhub primary / Stooq fallback OHLCV fetcher
-│   ├── indicators.js       # RSI, MACD, SMA, EMA, Bollinger, ATR + risk metrics
-│   ├── chart.js            # Canvas chart renderer (price, forecast, backtest)
-│   ├── ticker-search.js    # Autocomplete with the position-fixed dropdown fix
-│   └── watchlist.js        # localStorage-backed watchlist CRUD
+│   ├── app.js                  # Main orchestrator + view routing
+│   ├── data.js                 # Loads local JSON files (no API)
+│   ├── indicators.js           # RSI, MACD, SMA, Bollinger, ATR, risk
+│   ├── chart.js                # Canvas chart renderer
+│   ├── ticker-search.js        # Autocomplete logic
+│   ├── tickers.js              # 100-ticker list (autocomplete data)
+│   └── watchlist.js            # localStorage watchlist
 ├── data/
-│   └── forecasts/          # Precomputed ML JSONs (generated by Python script)
+│   ├── bars/                   ← notebook writes here (OHLCV JSONs)
+│   │   ├── manifest.json
+│   │   └── <TICKER>.json
+│   └── forecasts/              ← notebook writes here (ML outputs)
 │       ├── manifest.json
-│       ├── AAPL.json
-│       └── ...
+│       └── <TICKER>.json
 └── python/
-    ├── generate_forecasts.py   # Trains LSTM / ARIMA / RF / multi-horizon, emits JSON
-    └── requirements.txt
+    ├── tickers.py              # 100-ticker source of truth (Python side)
+    └── build_tickers_js.py     # Regenerates js/tickers.js from tickers.py
+                                  (only needed if you change the static list)
 ```
 
 ---
 
-## How it works
+## Adding tickers
 
-The dashboard runs entirely client-side — **no backend**. Suitable for
-GitHub Pages, Netlify, Vercel, or any static host.
+The 100-ticker universe is defined in two places that must stay in sync:
 
-**Live data** (price, indicators, risk metrics, buy/sell windows) comes from
-[Finnhub](https://finnhub.io)'s `/stock/candle` endpoint, with Stooq as a
-fallback (no key required, but slower). Every panel that depends on bars
-is computed in the browser from real OHLCV.
+- **Notebook cell 6** — `TICKER_UNIVERSE` list, used for data generation
+- **`js/tickers.js`** — autocomplete data, generated from `python/tickers.py`
 
-> **Why a key?** Static stock dashboards have a hard problem: financial
-> APIs that don't require auth are also the ones browsers block via CORS.
-> Yahoo Finance worked for years, then they tightened constraints in 2025.
-> Finnhub is the most reliable free option as of 2026: real CORS headers,
-> generous rate limit, and key-in-query-string design lets the browser
-> skip the CORS preflight entirely.
+To add a new ticker:
 
-**ML forecasts** are precomputed offline (training an LSTM in-browser would
-freeze the page for minutes). The Python script generates a per-ticker JSON
-under `data/forecasts/<TICKER>.json` and the app loads whichever matches.
+1. Add the line to the notebook's `TICKER_UNIVERSE` cell
+2. Add the line to `python/tickers.py`
+3. Run `python python/build_tickers_js.py` to regenerate `js/tickers.js`
+4. Run the notebook (with `TICKERS_TO_RUN = ['NEW_SYMBOL']` for a fast targeted run)
+5. Commit `js/tickers.js` and `python/tickers.py`; the notebook pushes the data JSONs
+
+Or just edit both lists together once and re-run the full notebook — the
+ticker list rarely changes after the first setup.
 
 ---
 
-## Running locally
+## What the dashboard shows
 
-The site has no build step. Serve over HTTP (ES modules don't work via `file://`):
+**Sidebar (always visible):**
+- Last-bar summary: price, change, OHLC, 52w high/low
+- 7 technical indicators: RSI, MACD, SMA-20/50/200, Bollinger, EMA-12
+- 7 risk metrics: Sharpe, Sortino, Calmar, max DD, profit factor, win rate, annualized vol
 
-```bash
-python3 -m http.server 8000
-# open http://localhost:8000
-```
+**Buy/sell windows panel:**
+- Buy zone (lower Bollinger → mid-band)
+- Sell zone (upper Bollinger → 52w high)
+- Stop loss (lower Bollinger − 1 ATR)
+- R/R ratio
+- Multi-signal consensus bar (RF probability + RSI + MACD + SMA-20)
 
----
+**Tabbed chart:**
+- *Price History* — Daily closes + SMA-20/50 overlays
+- *LSTM* — 30-day forecast + test-set fit; RMSE / MAE / MAPE
+- *ARIMA* — Walk-forward predictions + 30-day forecast; AIC
+- *Random Forest* — Accuracy vs LR/DT/baseline + feature importances + next-day P(UP)
+- *Multi-Horizon* — Per-horizon RF probabilities at 1, 3, 5, 10, 20 days
+- *Backtest* — 6 equity curves vs $10k buy-and-hold benchmark
 
-## Adding ML coverage for new tickers
+**Watchlist** — localStorage-backed, pre-seeded with AAPL, MSFT, NVDA, GOOGL, AMZN, TSLA
 
-The default coverage is 15 popular tickers (AAPL, MSFT, GOOGL, AMZN, NVDA,
-META, TSLA, JPM, V, WMT, DIS, NFLX, AMD, SPY, QQQ). Tickers outside this
-list will show live price + indicators but the ML tabs will say "not yet
-trained."
-
-To add a ticker:
-
-```bash
-cd python
-pip install -r requirements.txt
-python generate_forecasts.py PLTR SHOP COIN     # add specific tickers
-# or
-python generate_forecasts.py                    # regenerate the default 15
-```
-
-This trains all five models per ticker and writes:
-
-- `data/forecasts/<TICKER>.json` — model outputs + 30-day forecasts
-- `data/forecasts/manifest.json` — index of all available tickers
-
-Commit those JSONs to git and push — the live site will pick them up.
-
-> **Note:** Each ticker takes 1–3 minutes to train (LSTM is the bottleneck).
-> The full default list takes ~30 minutes on a CPU; faster on GPU.
-
-The Python pipeline still uses `yfinance` for historical training data
-(it works fine in Python — only browser fetches are blocked by Yahoo).
-
----
-
-## Deployment
-
-GitHub Pages — just push to a repo:
-
-```bash
-git init
-git add .
-git commit -m "Initial Quantis build"
-git remote add origin git@github.com:amma-ctrl/quantis.git
-git push -u origin main
-```
-
-Then enable Pages in repo Settings → Pages → Source: `main` → root.
-
-No build step. No environment variables. The Finnhub key lives in
-`js/data.js` (publicly visible — that's fine for free-tier Finnhub).
-
----
-
-## Known caveats
-
-- **Rate limits:** Finnhub free tier is 60 calls/min. The watchlist with
-  6 stocks plus a dashboard load = ~7 calls. You'd need ~9 ticker switches
-  per minute to hit the limit. If you do, you'll see "rate limit hit" —
-  wait a few seconds and retry.
-- **Markets closed:** weekend/holiday loads return the most recent trading
-  day's bars. The 1-month range is the safest starting point.
-- **Stooq fallback:** if Finnhub is down or your key is rejected, the app
-  falls back to Stooq via corsproxy.io. That proxy's free tier is
-  technically dev-only but works from `github.io`. If both fail, you'll
-  see a clear error in the UI.
+**Methodology** — Full write-up explaining every model + the data pipeline + honest limitations
 
 ---
 
 ## Stack
 
-- **Frontend:** Vanilla ES modules, canvas charts, no framework
+- **Frontend:** Vanilla ES modules, canvas charts, no framework, no build step
 - **Fonts:** Outfit (UI), JetBrains Mono (numbers/code)
-- **ML pipeline:** Python 3.11+ with TensorFlow, statsmodels, scikit-learn, ta, yfinance
-- **Data:** Finnhub `/stock/candle` & `/quote` (primary), Stooq via corsproxy.io (fallback)
-- **Hosting:** GitHub Pages (any static host works)
+- **Pipeline:** Colab + Python 3.11+ with TensorFlow, statsmodels, scikit-learn, ta, yfinance, PyGithub
+- **Hosting:** GitHub Pages
 
 ---
 
 ## License & disclaimer
 
 Educational research project — not financial advice. Past performance is
-not a guarantee of future results. Code released under MIT (do as you like,
-attribution welcome).
+not a guarantee of future results. Released under MIT.

@@ -11,91 +11,17 @@
  *
  * Selecting an option fires the `onSelect` callback supplied at init,
  * which the main app uses to load that ticker into the dashboard.
+ *
+ * The TICKERS list itself lives in tickers.js, auto-generated from
+ * python/tickers.py — keep the two in sync via python/build_tickers_js.py.
  */
 
-export const TICKERS = [
-  { s: "AAPL",  n: "Apple Inc." },
-  { s: "MSFT",  n: "Microsoft Corporation" },
-  { s: "GOOGL", n: "Alphabet Inc. Class A" },
-  { s: "GOOG",  n: "Alphabet Inc. Class C" },
-  { s: "AMZN",  n: "Amazon.com Inc." },
-  { s: "NVDA",  n: "NVIDIA Corporation" },
-  { s: "META",  n: "Meta Platforms Inc." },
-  { s: "TSLA",  n: "Tesla Inc." },
-  { s: "BRK-B", n: "Berkshire Hathaway Inc." },
-  { s: "JPM",   n: "JPMorgan Chase & Co." },
-  { s: "V",     n: "Visa Inc." },
-  { s: "MA",    n: "Mastercard Inc." },
-  { s: "JNJ",   n: "Johnson & Johnson" },
-  { s: "WMT",   n: "Walmart Inc." },
-  { s: "PG",    n: "Procter & Gamble Co." },
-  { s: "XOM",   n: "Exxon Mobil Corp." },
-  { s: "CVX",   n: "Chevron Corp." },
-  { s: "HD",    n: "Home Depot Inc." },
-  { s: "KO",    n: "Coca-Cola Co." },
-  { s: "PEP",   n: "PepsiCo Inc." },
-  { s: "BAC",   n: "Bank of America Corp." },
-  { s: "WFC",   n: "Wells Fargo & Co." },
-  { s: "C",     n: "Citigroup Inc." },
-  { s: "GS",    n: "Goldman Sachs Group Inc." },
-  { s: "MS",    n: "Morgan Stanley" },
-  { s: "DIS",   n: "Walt Disney Co." },
-  { s: "NFLX",  n: "Netflix Inc." },
-  { s: "ADBE",  n: "Adobe Inc." },
-  { s: "CRM",   n: "Salesforce Inc." },
-  { s: "ORCL",  n: "Oracle Corp." },
-  { s: "INTC",  n: "Intel Corp." },
-  { s: "AMD",   n: "Advanced Micro Devices" },
-  { s: "CSCO",  n: "Cisco Systems Inc." },
-  { s: "IBM",   n: "IBM Corp." },
-  { s: "PYPL",  n: "PayPal Holdings Inc." },
-  { s: "SQ",    n: "Block Inc." },
-  { s: "SHOP",  n: "Shopify Inc." },
-  { s: "UBER",  n: "Uber Technologies Inc." },
-  { s: "LYFT",  n: "Lyft Inc." },
-  { s: "ABNB",  n: "Airbnb Inc." },
-  { s: "COIN",  n: "Coinbase Global Inc." },
-  { s: "PLTR",  n: "Palantir Technologies" },
-  { s: "SNOW",  n: "Snowflake Inc." },
-  { s: "SPOT",  n: "Spotify Technology" },
-  { s: "SNAP",  n: "Snap Inc." },
-  { s: "RBLX",  n: "Roblox Corp." },
-  { s: "F",     n: "Ford Motor Co." },
-  { s: "GM",    n: "General Motors Co." },
-  { s: "BA",    n: "Boeing Co." },
-  { s: "CAT",   n: "Caterpillar Inc." },
-  { s: "NKE",   n: "Nike Inc." },
-  { s: "SBUX",  n: "Starbucks Corp." },
-  { s: "MCD",   n: "McDonald's Corp." },
-  { s: "COST",  n: "Costco Wholesale Corp." },
-  { s: "TGT",   n: "Target Corp." },
-  { s: "LOW",   n: "Lowe's Companies Inc." },
-  { s: "UNH",   n: "UnitedHealth Group Inc." },
-  { s: "PFE",   n: "Pfizer Inc." },
-  { s: "MRK",   n: "Merck & Co. Inc." },
-  { s: "ABBV",  n: "AbbVie Inc." },
-  { s: "LLY",   n: "Eli Lilly and Co." },
-  { s: "TMO",   n: "Thermo Fisher Scientific" },
-  { s: "ABT",   n: "Abbott Laboratories" },
-  { s: "AVGO",  n: "Broadcom Inc." },
-  { s: "QCOM",  n: "Qualcomm Inc." },
-  { s: "TXN",   n: "Texas Instruments Inc." },
-  { s: "MU",    n: "Micron Technology Inc." },
-  { s: "TSM",   n: "Taiwan Semiconductor" },
-  { s: "BABA",  n: "Alibaba Group Holding" },
-  { s: "JD",    n: "JD.com Inc." },
-  { s: "NIO",   n: "NIO Inc." },
-  { s: "RIVN",  n: "Rivian Automotive Inc." },
-  { s: "LCID",  n: "Lucid Group Inc." },
-  { s: "SPY",   n: "SPDR S&P 500 ETF" },
-  { s: "QQQ",   n: "Invesco QQQ Trust" },
-  { s: "VOO",   n: "Vanguard S&P 500 ETF" },
-  { s: "VTI",   n: "Vanguard Total Stock Market" },
-  { s: "IWM",   n: "iShares Russell 2000 ETF" },
-  { s: "DIA",   n: "SPDR Dow Jones ETF" },
-  { s: "GLD",   n: "SPDR Gold Shares" },
-  { s: "SLV",   n: "iShares Silver Trust" },
-];
+import { TICKERS, nameFor } from "./tickers.js";
+
+// Re-export so other modules can keep importing from ticker-search.js
+// without caring about the underlying split.
+export { TICKERS, nameFor };
+
 
 const MAX_RESULTS = 8;
 
@@ -224,8 +150,4 @@ export function initAutocomplete(input, dropdown, onSelect) {
 }
 
 /** Look up the canonical company name for a symbol, falling back to "<SYM> Corp." */
-export function nameFor(symbol) {
-  const s = (symbol || "").toUpperCase().trim();
-  const hit = TICKERS.find(t => t.s === s);
-  return hit ? hit.n : s + " Corp.";
-}
+// nameFor is now imported from tickers.js — see top of file

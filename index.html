@@ -18,6 +18,7 @@
     <span class="nav-tag">v1.0</span>
   </div>
   <div class="nav-links">
+    <span class="nav-freshness" id="navFreshness" title="Data freshness">Data: —</span>
     <a data-view="dashboard" class="active">Dashboard</a>
     <a data-view="watchlist">Watchlist</a>
     <a data-view="methodology">Methodology</a>
@@ -29,13 +30,14 @@
   <p class="hero-title">
     <strong>Quantis</strong> compares five forecasting approaches — <em>LSTM</em>, <em>ARIMA</em>,
     <em>Random Forest</em>, <em>Logistic Regression</em>, and a <em>multi-horizon ensemble</em> —
-    on live OHLCV data to surface buy and sell windows. Type a ticker on the left to load it; the
-    <strong>sidebar</strong> shows current price, technical indicators, and risk metrics computed
-    from real bars. The <strong>top panel</strong> derives buy/sell zones from Bollinger bands and
-    ATR. The <strong>tabbed chart</strong> lets you compare each model's forecast against the
-    actual price history and a 12-month backtest. Models for 15 popular tickers are pre-trained;
-    other tickers show live price &amp; indicators but ML tabs will say "not yet trained." See the
-    <strong>Methodology</strong> page for the math behind each model.
+    across 100 US stocks and ETFs. Type a ticker on the left to load it; the
+    <strong>sidebar</strong> shows price, technical indicators, and risk metrics computed
+    from real OHLCV bars. The <strong>top panel</strong> derives buy/sell zones from
+    Bollinger bands and ATR. The <strong>tabbed chart</strong> lets you compare each
+    model's forecast against the actual price history and a 12-month backtest. Data is
+    refreshed offline in Python and committed to the repo as JSON — no live API, no rate
+    limits, no broken fetches. See the <strong>Methodology</strong> page for the math
+    behind each model and why the architecture is what it is.
   </p>
 </div>
 
@@ -194,47 +196,57 @@
       <section class="method-section">
         <h2><span class="num">1</span> Data pipeline</h2>
         <p>
-          The dashboard runs entirely client-side on GitHub Pages — no backend. Live OHLCV bars
-          come from <a href="https://finnhub.io" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">Finnhub</a>'s
-          <code>/stock/candle</code> endpoint (free tier, 60 calls/min, no preflight when using
-          query-param auth). Yahoo Finance used to be the default for this kind of dashboard
-          but they've tightened their constraints since 2025 — direct browser fetches are now
-          actively blocked. Stooq (via a CORS proxy) is kept as a non-keyed fallback.
-          Technical indicators and risk metrics are computed in JavaScript from those bars —
-          the math mirrors the <code>ta</code> Python library.
+          The dashboard runs entirely client-side on GitHub Pages — no backend, no API keys,
+          no rate limits. OHLCV bars and ML forecasts are pre-generated in a single Colab
+          notebook (<code>Quantis_Pipeline.ipynb</code>) and committed to the repo as JSON
+          files under <code>data/bars/</code> and <code>data/forecasts/</code>. The browser
+          reads those local files directly. The badge in the top corner of this page shows
+          when the data was last refreshed — currently
+          <span id="dataFreshness" class="freshness-badge">checking…</span>.
         </p>
         <p>
-          ML models can't reasonably train in-browser (LSTM training takes minutes; ARIMA fitting
-          is iterative). Those run offline in Python (<code>python/generate_forecasts.py</code>)
-          and emit a per-ticker JSON file under <code>data/forecasts/</code>. The web app fetches
-          whichever JSON matches the current ticker. Tickers without a JSON show live price &amp;
-          indicators but a "not trained" state on ML tabs.
+          This is the third architecture I tried. The first prototype hit Yahoo Finance's
+          chart endpoint directly from the browser — that's how every static stock dashboard
+          worked for years — but Yahoo tightened CORS constraints in 2025 and started blocking
+          browser fetches. The second attempt used Finnhub's <code>/stock/candle</code>
+          endpoint, which has the right CORS headers, but Finnhub moved historical bars behind
+          a paywall in 2024-25. Alpha Vantage caps free use at 25 calls/day; Twelve Data and
+          Stooq via free CORS proxies break unpredictably from <code>github.io</code> origins.
+          For a portfolio site that must <em>just work</em>, every "live" option is broken.
+        </p>
+        <p>
+          The honest answer is to pre-generate. Yahoo data is still freely available — just
+          not from a browser. The Colab notebook pulls 5 years of daily OHLCV via
+          <code>yfinance</code>, trains all five models (LSTM benefits from a free Colab GPU),
+          and commits everything to GitHub in one batched API call. The dashboard then has
+          zero external dependencies. Re-running the notebook refreshes the live site in
+          ~2 minutes (bars only) or ~45 minutes (bars + full model retrain on GPU).
         </p>
         <div class="pipeline">
           <div class="pipe-step">
             <div class="pipe-step-num">01</div>
-            <div class="pipe-step-name">Fetch</div>
-            <div class="pipe-step-desc">Finnhub /stock/candle · Stooq fallback · 1mo–5y daily OHLCV</div>
+            <div class="pipe-step-name">Open Colab</div>
+            <div class="pipe-step-desc">Run <code>Quantis_Pipeline.ipynb</code> · GPU runtime for ~10× faster LSTM</div>
           </div>
           <div class="pipe-step">
             <div class="pipe-step-num">02</div>
-            <div class="pipe-step-name">Transform</div>
-            <div class="pipe-step-desc">RSI, MACD, SMA, EMA, Bollinger, ATR in pure JS</div>
+            <div class="pipe-step-name">Fetch</div>
+            <div class="pipe-step-desc">yfinance pulls 5y of OHLCV for 100 tickers from Yahoo</div>
           </div>
           <div class="pipe-step">
             <div class="pipe-step-num">03</div>
-            <div class="pipe-step-name">Load forecasts</div>
-            <div class="pipe-step-desc">Precomputed model outputs from Python pipeline</div>
+            <div class="pipe-step-name">Train</div>
+            <div class="pipe-step-desc">LSTM, ARIMA, RF, LR, multi-horizon models per ticker</div>
           </div>
           <div class="pipe-step">
             <div class="pipe-step-num">04</div>
-            <div class="pipe-step-name">Reconcile</div>
-            <div class="pipe-step-desc">Indicator signals + ML probabilities → consensus</div>
+            <div class="pipe-step-name">Push</div>
+            <div class="pipe-step-desc">One Git commit via GitHub API; Pages redeploys in ~30s</div>
           </div>
           <div class="pipe-step">
             <div class="pipe-step-num">05</div>
-            <div class="pipe-step-name">Render</div>
-            <div class="pipe-step-desc">Canvas-based price, forecast, and equity-curve charts</div>
+            <div class="pipe-step-name">Render (JS)</div>
+            <div class="pipe-step-desc">Canvas charts, indicators, risk metrics from local JSON</div>
           </div>
         </div>
       </section>
@@ -418,12 +430,16 @@
       <section class="method-section">
         <h2><span class="num">7</span> Stack &amp; reproducibility</h2>
         <p class="muted">
-          <strong>Frontend:</strong> Vanilla ES modules, canvas-rendered charts, no framework.
-          <strong>Data:</strong> Finnhub <code>/stock/candle</code> &amp; <code>/quote</code> (primary, free tier), Stooq via corsproxy.io (fallback). <strong>Offline pipeline:</strong> Python 3.11+ with TensorFlow, statsmodels,
-          scikit-learn, ta, yfinance. <strong>Deployment:</strong> GitHub Pages (static).
-          <strong>Source:</strong> the offline pipeline is reproducible end-to-end —
-          <code>cd python &amp;&amp; pip install -r requirements.txt &amp;&amp; python generate_forecasts.py</code>
-          retrains every model and updates the JSON files the site reads.
+          <strong>Frontend:</strong> Vanilla ES modules, canvas-rendered charts, no framework, no build step.
+          <strong>Data:</strong> pre-generated JSON in <code>data/bars/</code> (OHLCV) and
+          <code>data/forecasts/</code> (model outputs), committed to the repo.
+          <strong>Pipeline:</strong> single Colab notebook (<code>Quantis_Pipeline.ipynb</code>)
+          handles fetch → feature engineering → train → commit, using <code>yfinance</code>,
+          TensorFlow, statsmodels, scikit-learn, and <code>ta</code>.
+          <strong>Deployment:</strong> GitHub Pages, no CI needed.
+          <strong>Source:</strong> reproducible end-to-end — open the notebook in Colab,
+          add a <code>GITHUB_TOKEN</code> secret, set repo coords, Runtime → Run all. ~2 minutes
+          for a bars-only refresh, ~45 minutes on a free GPU runtime for the full model retrain.
         </p>
       </section>
 

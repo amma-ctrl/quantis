@@ -195,10 +195,13 @@
         <h2><span class="num">1</span> Data pipeline</h2>
         <p>
           The dashboard runs entirely client-side on GitHub Pages — no backend. Live OHLCV bars
-          come from Yahoo Finance's public chart endpoint (the same endpoint that
-          <code>yfinance</code> wraps in Python); if that's blocked, Quantis falls back to Stooq
-          via a CORS-friendly proxy. Technical indicators and risk metrics are computed in
-          JavaScript from those bars — the math mirrors the <code>ta</code> Python library.
+          come from <a href="https://finnhub.io" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">Finnhub</a>'s
+          <code>/stock/candle</code> endpoint (free tier, 60 calls/min, no preflight when using
+          query-param auth). Yahoo Finance used to be the default for this kind of dashboard
+          but they've tightened their constraints since 2025 — direct browser fetches are now
+          actively blocked. Stooq (via a CORS proxy) is kept as a non-keyed fallback.
+          Technical indicators and risk metrics are computed in JavaScript from those bars —
+          the math mirrors the <code>ta</code> Python library.
         </p>
         <p>
           ML models can't reasonably train in-browser (LSTM training takes minutes; ARIMA fitting
@@ -211,7 +214,7 @@
           <div class="pipe-step">
             <div class="pipe-step-num">01</div>
             <div class="pipe-step-name">Fetch</div>
-            <div class="pipe-step-desc">Yahoo Finance / Stooq fallback · 1mo–5y daily OHLCV</div>
+            <div class="pipe-step-desc">Finnhub /stock/candle · Stooq fallback · 1mo–5y daily OHLCV</div>
           </div>
           <div class="pipe-step">
             <div class="pipe-step-num">02</div>
@@ -416,8 +419,7 @@
         <h2><span class="num">7</span> Stack &amp; reproducibility</h2>
         <p class="muted">
           <strong>Frontend:</strong> Vanilla ES modules, canvas-rendered charts, no framework.
-          <strong>Data:</strong> Yahoo Finance chart endpoint (primary), Stooq via corsproxy.io
-          (fallback). <strong>Offline pipeline:</strong> Python 3.11+ with TensorFlow, statsmodels,
+          <strong>Data:</strong> Finnhub <code>/stock/candle</code> &amp; <code>/quote</code> (primary, free tier), Stooq via corsproxy.io (fallback). <strong>Offline pipeline:</strong> Python 3.11+ with TensorFlow, statsmodels,
           scikit-learn, ta, yfinance. <strong>Deployment:</strong> GitHub Pages (static).
           <strong>Source:</strong> the offline pipeline is reproducible end-to-end —
           <code>cd python &amp;&amp; pip install -r requirements.txt &amp;&amp; python generate_forecasts.py</code>

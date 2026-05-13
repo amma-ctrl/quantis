@@ -9,16 +9,39 @@ Visualization at Pratt Institute (INFO 656 final → web).
 
 ---
 
+## ⚠️ Setup: add your free Finnhub key (30 seconds, required)
+
+Yahoo Finance blocked direct browser fetches in 2025, so Quantis now uses
+Finnhub. The free tier is more than enough — 60 calls/min, full OHLCV.
+
+1. Sign up at **[finnhub.io/register](https://finnhub.io/register)** (free, no credit card)
+2. Copy your API key from **[finnhub.io/dashboard](https://finnhub.io/dashboard)**
+3. Open `js/data.js` and replace the placeholder near the top:
+   ```js
+   export const FINNHUB_KEY = "YOUR_FINNHUB_KEY_HERE";
+   ```
+   with your actual key:
+   ```js
+   export const FINNHUB_KEY = "ct7xxxxxxxxxxxxxxxxxxxxx";
+   ```
+4. Commit and push. GitHub Pages redeploys in ~30 seconds.
+
+If you skip this step, the dashboard shows a clear setup screen instead
+of broken data. The key is safe to commit publicly — Finnhub's free-tier
+keys only enforce rate limits, they don't authorize anything sensitive.
+
+---
+
 ## Project structure
 
 ```
 quantis/
 ├── index.html              # Main shell, three views (Dashboard / Watchlist / Methodology)
 ├── css/
-│   └── main.css            # All styling — dark theme, dropdown fix, responsive
+│   └── main.css            # All styling — dark theme, dropdown fix, responsive, setup screen
 ├── js/
 │   ├── app.js              # Main orchestrator + view routing
-│   ├── data.js             # Yahoo / Stooq OHLCV fetcher
+│   ├── data.js             # Finnhub primary / Stooq fallback OHLCV fetcher
 │   ├── indicators.js       # RSI, MACD, SMA, EMA, Bollinger, ATR + risk metrics
 │   ├── chart.js            # Canvas chart renderer (price, forecast, backtest)
 │   ├── ticker-search.js    # Autocomplete with the position-fixed dropdown fix
@@ -41,8 +64,16 @@ The dashboard runs entirely client-side — **no backend**. Suitable for
 GitHub Pages, Netlify, Vercel, or any static host.
 
 **Live data** (price, indicators, risk metrics, buy/sell windows) comes from
-Yahoo Finance's chart endpoint, with Stooq as a CORS-friendly fallback.
-Every panel that depends on bars is computed in the browser from real OHLCV.
+[Finnhub](https://finnhub.io)'s `/stock/candle` endpoint, with Stooq as a
+fallback (no key required, but slower). Every panel that depends on bars
+is computed in the browser from real OHLCV.
+
+> **Why a key?** Static stock dashboards have a hard problem: financial
+> APIs that don't require auth are also the ones browsers block via CORS.
+> Yahoo Finance worked for years, then they tightened constraints in 2025.
+> Finnhub is the most reliable free option as of 2026: real CORS headers,
+> generous rate limit, and key-in-query-string design lets the browser
+> skip the CORS preflight entirely.
 
 **ML forecasts** are precomputed offline (training an LSTM in-browser would
 freeze the page for minutes). The Python script generates a per-ticker JSON
@@ -52,13 +83,11 @@ under `data/forecasts/<TICKER>.json` and the app loads whichever matches.
 
 ## Running locally
 
-The site has no build step. Open `index.html` over a static server
-(needed because ES modules don't work via `file://`):
+The site has no build step. Serve over HTTP (ES modules don't work via `file://`):
 
 ```bash
-# From the project root
 python3 -m http.server 8000
-# then open http://localhost:8000
+# open http://localhost:8000
 ```
 
 ---
@@ -90,6 +119,9 @@ Commit those JSONs to git and push — the live site will pick them up.
 > **Note:** Each ticker takes 1–3 minutes to train (LSTM is the bottleneck).
 > The full default list takes ~30 minutes on a CPU; faster on GPU.
 
+The Python pipeline still uses `yfinance` for historical training data
+(it works fine in Python — only browser fetches are blocked by Yahoo).
+
 ---
 
 ## Deployment
@@ -106,21 +138,23 @@ git push -u origin main
 
 Then enable Pages in repo Settings → Pages → Source: `main` → root.
 
-No build step. No environment variables. No secrets.
+No build step. No environment variables. The Finnhub key lives in
+`js/data.js` (publicly visible — that's fine for free-tier Finnhub).
 
 ---
 
 ## Known caveats
 
-- **CORS on Yahoo:** Yahoo's chart endpoint sends `Access-Control-Allow-Origin: *`
-  on the `/v8/finance/chart/` route, but occasionally rate-limits aggressive
-  callers. If you see "All sources failed" in the UI, wait 30s and retry.
-  The Stooq fallback covers most outages.
-- **Crypto/foreign tickers:** Yahoo supports symbols like `BTC-USD` and
-  `7203.T` (Toyota), but Stooq's CORS proxy only knows US equities. If Yahoo
-  blocks you, those tickers will fail.
+- **Rate limits:** Finnhub free tier is 60 calls/min. The watchlist with
+  6 stocks plus a dashboard load = ~7 calls. You'd need ~9 ticker switches
+  per minute to hit the limit. If you do, you'll see "rate limit hit" —
+  wait a few seconds and retry.
 - **Markets closed:** weekend/holiday loads return the most recent trading
-  day's bars. The 1-month window is the safest starting point.
+  day's bars. The 1-month range is the safest starting point.
+- **Stooq fallback:** if Finnhub is down or your key is rejected, the app
+  falls back to Stooq via corsproxy.io. That proxy's free tier is
+  technically dev-only but works from `github.io`. If both fail, you'll
+  see a clear error in the UI.
 
 ---
 
@@ -129,7 +163,7 @@ No build step. No environment variables. No secrets.
 - **Frontend:** Vanilla ES modules, canvas charts, no framework
 - **Fonts:** Outfit (UI), JetBrains Mono (numbers/code)
 - **ML pipeline:** Python 3.11+ with TensorFlow, statsmodels, scikit-learn, ta, yfinance
-- **Data:** Yahoo Finance (primary), Stooq via corsproxy.io (fallback)
+- **Data:** Finnhub `/stock/candle` & `/quote` (primary), Stooq via corsproxy.io (fallback)
 - **Hosting:** GitHub Pages (any static host works)
 
 ---

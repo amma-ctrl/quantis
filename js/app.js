@@ -10,7 +10,7 @@
  * `.view` element. No router framework needed.
  */
 
-import { fetchBars, fetchForecasts, fetchQuote } from "./data.js";
+import { fetchBars, fetchForecasts, fetchQuote, isConfigured } from "./data.js";
 import { computeAll } from "./indicators.js";
 import {
   renderPriceChart, renderForecastChart, renderBacktestChart, buildEquityCurves,
@@ -597,10 +597,76 @@ function switchView(target) {
 }
 
 // ---------------------------------------------------------------------------
+// Setup screen (shown when the Finnhub key is missing)
+// ---------------------------------------------------------------------------
+
+function showSetupScreen() {
+  const page = document.querySelector(".page");
+  if (!page) return;
+
+  // Hide the hero too — the setup screen takes over
+  const hero = document.querySelector(".hero");
+  if (hero) hero.style.display = "none";
+
+  page.innerHTML = `
+    <div class="setup-screen">
+      <div class="setup-card">
+        <div class="setup-icon">🔑</div>
+        <h1 class="setup-title">One-time setup</h1>
+        <p class="setup-lede">
+          Quantis needs a free Finnhub API key to fetch live market data.
+          Setup takes about 30 seconds.
+        </p>
+
+        <ol class="setup-steps">
+          <li>
+            <strong>Sign up</strong> at
+            <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io/register</a>
+            (free, no credit card)
+          </li>
+          <li>
+            Copy your API key from
+            <a href="https://finnhub.io/dashboard" target="_blank" rel="noopener">finnhub.io/dashboard</a>
+          </li>
+          <li>
+            Open <code>js/data.js</code> in the repo and replace
+            <code>YOUR_FINNHUB_KEY_HERE</code> on line ~37 with your key:
+            <pre><code>export const FINNHUB_KEY = "your_key_pasted_here";</code></pre>
+          </li>
+          <li>
+            Commit, push to GitHub, wait ~30s for Pages to redeploy. Done.
+          </li>
+        </ol>
+
+        <div class="setup-why">
+          <strong>Why a key?</strong> Yahoo Finance started blocking direct
+          browser fetches in 2025 — every static stock dashboard now needs an
+          API provider. Finnhub's free tier (60 calls/min) is plenty for a
+          portfolio site. The key is safe to commit to a public repo since
+          it only enforces rate limits, not authorization.
+        </div>
+
+        <div class="setup-why" style="margin-top:12px">
+          <strong>Already added it?</strong> Make sure the file was saved and
+          pushed, then hard-refresh this page (Cmd/Ctrl + Shift + R).
+        </div>
+      </div>
+    </div>`;
+}
+
+// ---------------------------------------------------------------------------
 // Init
 // ---------------------------------------------------------------------------
 
 function init() {
+  // If the Finnhub key isn't configured, show the setup screen and bail.
+  // (Stooq fallback exists but is unreliable; better to ask the user to
+  // configure properly than show a half-working dashboard.)
+  if (!isConfigured()) {
+    showSetupScreen();
+    return;
+  }
+
   // Nav links
   document.querySelectorAll(".nav-links a").forEach(a =>
     a.addEventListener("click", e => { e.preventDefault(); switchView(a.dataset.view); }));

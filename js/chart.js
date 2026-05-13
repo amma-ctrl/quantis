@@ -290,6 +290,200 @@ export function renderBacktestChart(canvas, curves, labels, colors) {
  * For ML regressors (LSTM, ARIMA) the precomputed MAPE → confidence → expected
  * edge. Buy & hold uses the actual price series.
  */
+// ---------------------------------------------------------------------------
+// FEATURE IMPORTANCE CHART (Random Forest tab)
+//
+// Horizontal-bar chart showing all 19 engineered features ranked by the
+// trained RF's `feature_importances_`. Designed to be the visual centerpiece
+// of the RF tab — fills the same canvas slot the price/forecast charts use
+// on other tabs.
+// ---------------------------------------------------------------------------
+
+export function renderFeatureImportance(canvas, importances, color = "#f472b6") {
+  const prep = prepCanvas(canvas);
+  if (!prep) return;
+  const { ctx, w, h } = prep;
+
+  // Sort descending so most-important sits at top
+  const entries = Object.entries(importances).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) return;
+
+  const PADL = 130; // wider left pad for feature names
+  const PADR = 60;
+  const PADT = 14;
+  const PADB = 14;
+  const cw = w - PADL - PADR;
+  const ch = h - PADT - PADB;
+
+  const maxVal = entries[0][1];
+  const rowH = ch / entries.length;
+  const barH = Math.max(6, Math.min(18, rowH * 0.55));
+
+  ctx.font = "10.5px Outfit";
+  ctx.textBaseline = "middle";
+
+  for (let i = 0; i < entries.length; i++) {
+    const [name, val] = entries[i];
+    const y = PADT + rowH * (i + 0.5);
+    const barW = Math.max(2, (val / maxVal) * cw);
+
+    // Label
+    ctx.fillStyle = "#6b6b7b";
+    ctx.textAlign = "right";
+    ctx.fillText(name, PADL - 8, y);
+
+    // Bar background
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.fillRect(PADL, y - barH / 2, cw, barH);
+
+    // Bar
+    const grad = ctx.createLinearGradient(PADL, 0, PADL + barW, 0);
+    grad.addColorStop(0, hexToRgba(color, 0.4));
+    grad.addColorStop(1, color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(PADL, y - barH / 2, barW, barH);
+
+    // Value
+    ctx.fillStyle = "#e4e2dd";
+    ctx.textAlign = "left";
+    ctx.fillText((val * 100).toFixed(1) + "%", PADL + barW + 6, y);
+  }
+
+  // Axis title at bottom
+  ctx.fillStyle = "#3e3e4e";
+  ctx.font = "9px JetBrains Mono";
+  ctx.textAlign = "center";
+  ctx.fillText("← higher importance to lower importance →", w / 2, h - 2);
+}
+
+// ---------------------------------------------------------------------------
+// MULTI-HORIZON PROBABILITY CURVE (Ensemble tab)
+//
+// Line chart showing P(UP) at each horizon (1, 3, 5, 10, 20 days). The
+// horizontal 50% line is the directional-flip threshold; markers are
+// colored by direction (green if >50%, red if <50%).
+// ---------------------------------------------------------------------------
+
+export function renderHorizonCurve(canvas, horizons) {
+  const prep = prepCanvas(canvas);
+  if (!prep) return;
+  const { ctx, w, h } = prep;
+
+  // Pull and order by horizon_days
+  const pts = Object.values(horizons).filter(v => v).sort(
+    (a, b) => a.horizon_days - b.horizon_days
+  );
+  if (pts.length < 2) return;
+
+  const PADL = 56;
+  const PADR = 24;
+  const PADT = 24;
+  const PADB = 36;
+  const cw = w - PADL - PADR;
+  const ch = h - PADT - PADB;
+
+  // Always plot 0–100% range so the 50% threshold has visual weight
+  const yMin = 0, yMax = 100;
+  const x = i => PADL + (i / (pts.length - 1)) * cw;
+  const y = v => PADT + (1 - (v - yMin) / (yMax - yMin)) * ch;
+
+  // Y-axis grid + labels
+  ctx.strokeStyle = "rgba(255,255,255,0.04)";
+  ctx.fillStyle = "#6b6b7b";
+  ctx.font = "10px JetBrains Mono";
+  ctx.textBaseline = "middle";
+  for (let p = 0; p <= 100; p += 25) {
+    const yy = y(p);
+    ctx.beginPath(); ctx.moveTo(PADL, yy); ctx.lineTo(w - PADR, yy); ctx.stroke();
+    ctx.textAlign = "right";
+    ctx.fillText(p + "%", PADL - 8, yy);
+  }
+
+  // 50% threshold — bold dashed line
+  ctx.strokeStyle = "rgba(251,191,36,0.4)";
+  ctx.setLineDash([5, 4]);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(PADL, y(50)); ctx.lineTo(w - PADR, y(50));
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(251,191,36,0.7)";
+  ctx.font = "9px Outfit";
+  ctx.textAlign = "left";
+  ctx.fillText("50% — directional flip", PADL + 8, y(50) - 6);
+
+  // Accuracy band — fainter line behind P(UP) showing model accuracy across
+  // horizons. Helps the viewer see where the model is more or less reliable.
+  ctx.strokeStyle = "rgba(255,255,255,0.18)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const xi = x(i), yi = y(p.accuracy * 100);
+    i === 0 ? ctx.moveTo(xi, yi) : ctx.lineTo(xi, yi);
+  });
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Main P(UP) line — orange like the tab color
+  ctx.strokeStyle = "#fb923c";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  pts.forEach((p, i) => {
+    const xi = x(i), yi = y(p.p_up * 100);
+    i === 0 ? ctx.moveTo(xi, yi) : ctx.lineTo(xi, yi);
+  });
+  ctx.stroke();
+
+  // Markers
+  pts.forEach((p, i) => {
+    const xi = x(i), yi = y(p.p_up * 100);
+    const color = p.p_up > 0.5 ? "#34d399" : "#f87171";
+    ctx.beginPath();
+    ctx.arc(xi, yi, 6, 0, Math.PI * 2);
+    ctx.fillStyle = "#0a0a0f";
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+
+    // Value label above each marker
+    ctx.fillStyle = color;
+    ctx.font = "11px JetBrains Mono";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.fillText((p.p_up * 100).toFixed(0) + "%", xi, yi - 9);
+  });
+
+  // X-axis labels
+  ctx.fillStyle = "#6b6b7b";
+  ctx.font = "10px Outfit";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  pts.forEach((p, i) => {
+    ctx.fillText(p.horizon_days + "d", x(i), h - PADB + 8);
+  });
+
+  // Legend (top-right)
+  ctx.font = "9px Outfit";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const lx = w - PADR - 180;
+  const ly = PADT + 4;
+  ctx.fillStyle = "#fb923c"; ctx.fillRect(lx, ly - 1, 14, 2);
+  ctx.fillStyle = "#6b6b7b"; ctx.fillText("P(UP)", lx + 20, ly);
+  ctx.fillStyle = "rgba(255,255,255,0.4)";
+  ctx.fillRect(lx + 70, ly - 1, 14, 2);
+  ctx.fillStyle = "#6b6b7b"; ctx.fillText("Model accuracy", lx + 90, ly);
+}
+
+// ---------------------------------------------------------------------------
+// EQUITY CURVES (Backtest tab)
+//
+// Builds 6 equity curves from model accuracy / MAPE statistics + a passive
+// buy-and-hold benchmark over the last 252 trading days.
+// ---------------------------------------------------------------------------
+
 export function buildEquityCurves(bars, forecasts) {
   const close = bars.map(b => b.close);
   const dailyReturns = [];

@@ -34,7 +34,6 @@ const FORECASTS_DIR = "data/forecasts";
  * We slice the tail when the user requests a shorter range.
  */
 const RANGE_BARS = {
-  "1mo":  22,
   "3mo":  66,
   "6mo":  132,
   "1y":   252,

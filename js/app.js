@@ -14,6 +14,7 @@ import { fetchBars, fetchForecasts, fetchQuote } from "./data.js";
 import { computeAll } from "./indicators.js";
 import {
   renderPriceChart, renderForecastChart, renderBacktestChart, buildEquityCurves,
+  renderFeatureImportance, renderHorizonCurve,
 } from "./chart.js";
 import { initAutocomplete, nameFor, TICKERS } from "./ticker-search.js";
 import {
@@ -248,7 +249,7 @@ function renderTab(tab) {
   }
 
   const timeToggles = `<div class="time-toggles">
-    ${["1mo", "3mo", "6mo", "1y", "2y", "5y"].map(r => `
+    ${["3mo", "6mo", "1y", "2y", "5y"].map(r => `
       <button class="time-btn ${r === state.range ? "active" : ""}" data-range="${r}">
         ${r.toUpperCase().replace("MO", "M")}
       </button>`).join("")}
@@ -334,6 +335,7 @@ function renderTab(tab) {
           <div class="chart-subtitle">${state.ticker} · 19 engineered features · binary up/down target</div>
         </div>
       </div>
+      <div class="chart-canvas-wrap"><canvas id="mainCanvas"></canvas></div>
       <div class="rf-grid">
         <div class="rf-block">
           <div class="rf-block-label">Classifier accuracy (test set)</div>
@@ -345,7 +347,7 @@ function renderTab(tab) {
           </table>
         </div>
         <div class="rf-block">
-          <div class="rf-block-label">Top features by importance</div>
+          <div class="rf-block-label">Top 5 features</div>
           ${topFeatures.map(([f, v]) => `
             <div class="feat-row">
               <span class="feat-name">${f}</span>
@@ -362,6 +364,8 @@ function renderTab(tab) {
           </div>
         </div>
       </div>`;
+    requestAnimationFrame(() =>
+      renderFeatureImportance($("mainCanvas"), rf.feature_importances, meta.color));
   }
 
   // ----- ENSEMBLE (Multi-Horizon) -----
@@ -375,6 +379,7 @@ function renderTab(tab) {
           <div class="chart-subtitle">${state.ticker} · ${meta.sub}</div>
         </div>
       </div>
+      <div class="chart-canvas-wrap"><canvas id="mainCanvas"></canvas></div>
       <div class="horizon-grid">
         ${hs.map(h => {
           const pct = (h.p_up * 100).toFixed(1);
@@ -390,8 +395,11 @@ function renderTab(tab) {
       </div>
       <div class="ensemble-note">
         Each horizon is a separate Random Forest trained to predict whether close N days from now will be above today's close.
-        Probabilities above 60% (green) suggest the model sees a meaningful directional edge over baseline.
+        The dashed line above shows model accuracy at each horizon — closer to 60%+ means the model has a meaningful edge.
+        Probabilities above 60% (green dots) suggest a strong directional signal at that horizon.
       </div>`;
+    requestAnimationFrame(() =>
+      renderHorizonCurve($("mainCanvas"), f.horizons));
   }
 
   // ----- CONSENSUS / BACKTEST -----
@@ -453,10 +461,12 @@ function showNotTrained(panel, modelName, tab) {
       <div class="not-trained-icon">⚠</div>
       <div class="not-trained-title">${modelName} not yet trained for ${state.ticker}</div>
       <div class="not-trained-body">
-        ML models are precomputed offline (run <code>python python/generate_forecasts.py ${state.ticker}</code> to add coverage).
-        The current set: AAPL, MSFT, GOOGL, AMZN, NVDA, META, TSLA, JPM, V, WMT, DIS, NFLX, AMD, SPY, QQQ.
+        ML forecasts are precomputed in Colab and committed to the repo. To add ${state.ticker}
+        to the trained universe, open <code>Quantis_Pipeline.ipynb</code>, set
+        <code>TICKERS_TO_RUN = ['${state.ticker}']</code> in the config cell, and Run All.
         <br><br>
-        Other tabs (price history, technical indicators, risk metrics, buy/sell windows) work on any live ticker.
+        Other tabs (price history, technical indicators, risk metrics, buy/sell windows) still work
+        if bars data exists for this ticker.
       </div>
     </div>`;
 }
@@ -510,9 +520,9 @@ function showError(msg) {
       <div class="not-trained-body">
         ${msg}<br><br>
         Quantis covers 100 US stocks and ETFs out of the box. To add ${state.ticker},
-        run <code>python python/generate_bars.py ${state.ticker}</code>
-        (and optionally <code>python python/generate_forecasts.py ${state.ticker}</code>
-        for ML coverage), then commit the new JSON files.
+        open <code>Quantis_Pipeline.ipynb</code>, add the ticker to <code>TICKER_UNIVERSE</code>,
+        set <code>TICKERS_TO_RUN = ['${state.ticker}']</code>, and Run All. The notebook
+        pushes the new JSON straight to the repo.
       </div>
     </div>`;
 }
@@ -593,7 +603,20 @@ async function renderWatchlistTab() {
 function wireWatchlistAddForm() {
   const input = $("watch-add-input");
   const btn = $("watch-add-btn");
+  const dropdown = $("watchAddDropdown");
   if (!input || !btn) return;
+
+  // Autocomplete on the input (same component as the dashboard's ticker field).
+  // Selecting an option adds the ticker directly rather than waiting for Enter.
+  if (dropdown) {
+    initAutocomplete(input, dropdown, t => {
+      addToWatchlist(t.s);
+      input.value = "";
+      renderWatchlistTab();
+      updateWatchlistButton();
+    });
+  }
+
   btn.addEventListener("click", () => {
     const v = (input.value || "").toUpperCase().trim();
     if (!v) return;

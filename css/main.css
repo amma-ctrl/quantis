@@ -139,6 +139,59 @@ body {
 }
 .hero-title strong { color: var(--text); font-weight: 600; }
 .hero-title em { color: var(--accent); font-style: normal; font-weight: 500; }
+.hero-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hero-link:hover { text-decoration: underline; }
+
+.method-github-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 14px 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.method-github-link:hover {
+  background: var(--bg3);
+  border-color: var(--border2);
+  border-left-color: var(--accent);
+  transform: translateX(2px);
+}
+.method-github-link .gh-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+.method-github-link .gh-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.method-github-link .gh-text strong { font-size: 14px; }
+.method-github-link .gh-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.method-github-link code {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+}
 
 /* =========================================================================
    PAGE + VIEW SYSTEM
@@ -702,26 +755,26 @@ canvas { display: block; }
 .rf-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
+  gap: 10px;
+  margin-top: 10px;
+  flex-shrink: 0;
 }
 .rf-block {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 14px;
+  padding: 10px 12px;
 }
 .rf-block-label {
-  font-size: 9.5px;
+  font-size: 9px;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--muted);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   font-weight: 600;
 }
-.rf-table { width: 100%; font-family: var(--mono); font-size: 12px; }
-.rf-table td { padding: 5px 0; }
+.rf-table { width: 100%; font-family: var(--mono); font-size: 11px; }
+.rf-table td { padding: 3px 0; }
 .rf-table td:last-child { text-align: right; font-weight: 600; }
 
 .feat-row {
@@ -765,40 +818,39 @@ canvas { display: block; }
   justify-content: center;
   align-items: center;
   text-align: center;
-  padding: 12px;
+  padding: 4px;
 }
 .prob-display.up   { color: var(--green); }
 .prob-display.down { color: var(--red); }
 .prob-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 1px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 .prob-val {
   font-family: var(--mono);
-  font-size: 36px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1;
 }
-.prob-direction { font-size: 12px; font-weight: 600; margin-top: 8px; }
+.prob-direction { font-size: 10.5px; font-weight: 600; margin-top: 4px; }
 
 /* --- Multi-horizon ensemble --- */
 
 .horizon-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  flex: 1;
-  min-height: 0;
-  align-content: start;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  flex-shrink: 0;
 }
 .horizon-card {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 14px;
+  padding: 10px 12px;
   position: relative;
   overflow: hidden;
 }
@@ -820,15 +872,15 @@ canvas { display: block; }
 }
 .horizon-prob {
   font-family: var(--mono);
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 700;
 }
 .horizon-card.up   .horizon-prob { color: var(--green); }
 .horizon-card.down .horizon-prob { color: var(--red); }
 .horizon-dir {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--muted);
-  margin: 6px 0 10px;
+  margin: 4px 0 8px;
 }
 .horizon-bar {
   height: 4px;

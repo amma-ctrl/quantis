@@ -37,7 +37,9 @@
     model's forecast against the actual price history and a 12-month backtest. Data is
     refreshed offline in Python and committed to the repo as JSON — no live API, no rate
     limits, no broken fetches. See the <strong>Methodology</strong> page for the math
-    behind each model and why the architecture is what it is.
+    behind each model and why the architecture is what it is. Full source code, the
+    Colab pipeline, and the list of covered tickers are on
+    <a href="https://github.com/amma-ctrl/quantis" target="_blank" rel="noopener" class="hero-link">GitHub →</a>
   </p>
 </div>
 
@@ -191,6 +193,17 @@
           Below: the data pipeline, each model's design choices, how predictions are reconciled,
           and the honest limitations of the work.
         </p>
+        <a class="method-github-link" href="https://github.com/amma-ctrl/quantis" target="_blank" rel="noopener">
+          <span class="gh-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+          </span>
+          <span class="gh-text">
+            <strong>View the source on GitHub →</strong>
+            <span class="gh-sub">All code, Colab pipeline, ticker list, and generated JSONs are at <code>github.com/amma-ctrl/quantis</code></span>
+          </span>
+        </a>
       </div>
 
       <section class="method-section">
@@ -376,7 +389,7 @@
         <p>
           Random Forest's feature importance ranking (visible on the RF tab) usually puts SMA-based
           features near the top, which makes intuitive sense — short-term trend dominates next-day
-          direction. The full feature list is in <code>python/generate_forecasts.py</code>.
+          direction. The full feature list is in the Colab notebook's <code>FEATURE_COLS</code>.
         </p>
       </section>
 
@@ -449,8 +462,9 @@
 
 </div>
 
-<!-- ===== Dropdown lives outside .sidebar to escape clipping ===== -->
+<!-- ===== Dropdowns live outside .sidebar to escape clipping ===== -->
 <div class="ticker-dropdown" id="tickerDropdown"></div>
+<div class="ticker-dropdown" id="watchAddDropdown"></div>
 
 <div class="disclaimer">
   Quantis is an educational research project. Not financial advice.

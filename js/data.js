@@ -37,7 +37,7 @@
  * For a production app you'd proxy via a backend; for a portfolio site,
  * exposing the key is the standard pattern.
  */
-export const FINNHUB_KEY = "YOUR_FINNHUB_KEY_HERE";
+export const FINNHUB_KEY = "d823m3pr01qrojfdtg0gd823m3pr01qrojfdtg10";
 
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
 const STOOQ_PROXY = "https://corsproxy.io/?url=";
